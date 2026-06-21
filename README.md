@@ -113,9 +113,10 @@ Choose from the interactive menu:
 
 ---
 
-## Test
+## Testing & Evaluation
 
 ```bash
-npm test                   # run all tests
-npm test -- --coverage     # with full coverage report
+npm test                   # Run mocked unit tests
+npm test -- --coverage     # Run tests and generate code coverage report
+npm test eval              # Run live E2E evaluation tests against real Claude API
 ```
