@@ -14,6 +14,9 @@ const { mockInvoke } = vi.hoisted(() => ({
   mockInvoke: vi.fn().mockResolvedValue({
     category: "medical",
     urgency: "low",
+    severity: "low",
+    confidence: 0.9,
+    rationale: "Clear test incident text.",
     missing_info: [],
     summary: "Test summary",
     user_name: "Jane",
@@ -49,6 +52,9 @@ const withClassification = (overrides: object): GraphState => ({
   classification: {
     category: "medical" as const,
     urgency: "low" as const,
+    severity: "low" as const,
+    confidence: 0.9,
+    rationale: "Default rationale",
     missing_info: [],
     summary: "A summary",
     user_name: null,
@@ -81,7 +87,7 @@ describe("classifyNode", () => {
 
   it("handles missing_info in response", async () => {
     mockInvoke.mockResolvedValueOnce({
-      category: "rescue", urgency: "medium", missing_info: ["address"], summary: "s", user_name: null,
+      category: "rescue", urgency: "medium", severity: "medium", confidence: 0.8, rationale: "Missing fields text.", missing_info: ["address"], summary: "s", user_name: null,
     });
     const r = await classifyNode({ ...base, preprocessed_text: "stuck" });
     expect(r.classification?.missing_info).toContain("address");
@@ -102,8 +108,18 @@ describe("routerNode", () => {
     expect(r.route).toBe("escalate_to_human");
     expect(r.final_action).toContain("missing info");
   });
-  it("auto_dispatch on low urgency, no missing info", () => {
-    const r = routerNode(withClassification({ urgency: "low" }));
+  it("escalates on low model confidence", () => {
+    const r = routerNode(withClassification({ confidence: 0.4 }));
+    expect(r.route).toBe("escalate_to_human");
+    expect(r.final_action).toContain("low model confidence");
+  });
+  it("escalates on catastrophic severity level", () => {
+    const r = routerNode(withClassification({ urgency: "low", severity: "catastrophic" }));
+    expect(r.route).toBe("escalate_to_human");
+    expect(r.final_action).toContain("catastrophic severity");
+  });
+  it("auto_dispatch on low urgency, no missing info, high confidence", () => {
+    const r = routerNode(withClassification({ urgency: "low", severity: "low", confidence: 0.9 }));
     expect(r.route).toBe("auto_dispatch");
     expect(r.final_action).toContain("Auto-dispatching");
   });

@@ -37,22 +37,22 @@ export async function classifyNode(state: GraphState): Promise<Partial<GraphStat
   const classification = (await model.invoke([
     {
       role: "system",
-      content: `You are an emergency dispatcher. Classify the incident into:
-- category: logistics | medical | rescue | unknown
-- urgency: low | medium | critical
-- missing_info: Only list [ "address", "phone"] if they are missing. Do not invent other fields.
-- summary: one sentence summary in English
-- user_name: Extract the person's name if they explicitly state it . If no name is mentioned, return null.`,
+         content: `You are an emergency dispatcher. Analyze the incident text and populate the required schema fields accurately based on their types and descriptions.
+      
+Rules for missing_info: Include only 'address' or 'phone' if they are missing from the text. Keep the array empty if no other critical info is needed.`,
     },
     { role: "user", content: state.preprocessed_text },
   ])) as unknown as Classification;
 
-  logger.info("classify", `Category: ${classification.category} | Urgency: ${classification.urgency}`);
+  logger.info("classify", `Category: ${classification.category} | Urgency: ${classification.urgency} | Severity: ${classification.severity} | Conf: ${classification.confidence}`);
+  logger.info("classify", `Rationale: ${classification.rationale}`);
+  
   if (classification.missing_info.length > 0)
     logger.warn("classify", `Missing info: ${classification.missing_info.join(", ")}`);
 
   return { classification };
 }
+
 
 export function routerNode(state: GraphState): Partial<GraphState> {
   const { classification } = state;
@@ -61,19 +61,18 @@ export function routerNode(state: GraphState): Partial<GraphState> {
     return { route: "escalate_to_human", final_action: "No classification — escalating." };
   }
 
-  const route: Route =
-    classification.urgency === "critical" || classification.missing_info.length > 0
-      ? "escalate_to_human"
-      : "auto_dispatch";
+  const escalationReasons: string[] = [];
 
-  const final_action =
-    route === "auto_dispatch"
-      ? `Auto-dispatching: ${classification.summary}`
-      : `ESCALATE — Reason: ${
-          classification.urgency === "critical"
-            ? "life-threatening"
-            : "missing info: " + classification.missing_info.join(", ")
-        }`;
+  if (classification.urgency === "critical") escalationReasons.push("life-threatening urgency");
+  if (classification.missing_info.length > 0) escalationReasons.push(`missing info: ${classification.missing_info.join(", ")}`);
+  if (classification.confidence !== undefined && classification.confidence < 0.6) escalationReasons.push(`low model confidence (${classification.confidence})`);
+  if (classification.severity === "catastrophic") escalationReasons.push("catastrophic severity level");
+
+  const route: Route = escalationReasons.length > 0 ? "escalate_to_human" : "auto_dispatch";
+
+  const final_action = route === "auto_dispatch"
+    ? `Auto-dispatching: ${classification.summary} (Rationale: ${classification.rationale})`
+    : `ESCALATE — Reason: ${escalationReasons.join(" | ")}`;
 
   logger.step("router", `Route: ${route}`);
   return { route, final_action };

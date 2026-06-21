@@ -18,11 +18,13 @@ Input → preprocess → classify (Claude AI) → router
 ```
 
 1. **Preprocess** — Cleans and normalizes the raw text, collapses extra whitespace and punctuation, and extracts Israeli phone numbers automatically.
-2. **Classify** — Sends the text to Claude, which returns structured output: incident category, urgency level, any missing information, a short summary, and the caller's name if mentioned.
-3. **Route** — Decides what happens next based on the classification:
-   - Urgency is `critical` → escalate to a human commander
-   - Missing address or phone → escalate to a human commander
-   - Everything looks complete → auto-dispatch a volunteer
+2. **Classify** — Sends the text to Claude, which returns structured output: incident category, urgency level, severity level, model confidence score, reasoning rationale, any missing information, a short summary, and the caller's name if mentioned.
+3. **Route** — Decides what happens next based on the classification using dynamic escalation rules. It automatically routes the incident to a human commander if any of the following risk conditions are met:
+   - Urgency is critical or severity is catastrophic
+   - Model confidence score is low, less than 0.6, indicating vague or unverified text
+   - Critical information, address or phone, is missing from the report
+   - Otherwise, if everything looks solid, it triggers an auto-dispatch for immediate deployment.
+
 4. **Human approval** — When escalation is triggered, the graph pauses using LangGraph's `interrupt()` and prompts the duty officer via the CLI. If approved, the incident is logged to Google Sheets as escalated. If rejected, it goes to the manual handling log instead.
 
 ---
@@ -33,7 +35,10 @@ Claude returns a structured Zod-validated response for every incident:
 
 - **category** — `logistics` / `medical` / `rescue` / `unknown`
 - **urgency** — `low` / `medium` / `critical`
-- **missing_info** — which fields are absent: `address`, `phone`, or empty if complete
+- **severity** — `low` / `medium` / `high` / `catastrophic` (measures the overall damage and systemic impact)
+- **confidence** — a float from `0.0` to `1.0` representing model classification certainty
+- **rationale** — a short, single-sentence technical explanation of why these classification labels were chosen
+- **missing_info** — which fields are absent: strictly limited to `address`, `phone`, or empty if complete
 - **summary** — a one-sentence English summary of the incident
 - **user_name** — the caller's name if explicitly mentioned, otherwise `null`
 

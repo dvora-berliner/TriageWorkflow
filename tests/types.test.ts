@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CategorySchema, UrgencySchema, ClassificationSchema } from "../src/types";
+import { CategorySchema, UrgencySchema, SeveritySchema, ClassificationSchema } from "../src/types";
 
 describe("CategorySchema", () => {
   it.each(["logistics", "medical", "rescue", "unknown"])("accepts %s", (v) => {
@@ -19,8 +19,26 @@ describe("UrgencySchema", () => {
   });
 });
 
+describe("SeveritySchema", () => {
+  it.each(["low", "medium", "high", "catastrophic"])("accepts %s", (v) => {
+    expect(SeveritySchema.parse(v)).toBe(v);
+  });
+  it("rejects invalid value", () => {
+    expect(() => SeveritySchema.parse("apocalypse")).toThrow();
+  });
+});
+
 describe("ClassificationSchema", () => {
-  const valid = { category: "rescue", urgency: "low", missing_info: [], summary: "s", user_name: null };
+  const valid = { 
+    category: "rescue", 
+    urgency: "low", 
+    severity: "low",
+    confidence: 0.9,
+    rationale: "Clear text detailing minor rescue assistance.",
+    missing_info: [], 
+    summary: "s", 
+    user_name: null 
+  };
   it("parses valid object", () => {
     expect(ClassificationSchema.parse(valid).category).toBe("rescue");
   });
