@@ -24,3 +24,5 @@ jobs:
 
       - name: Run tests
         run: npx vitest run --exclude "**/eval*"
+        env:
+          ANTHROPIC_API_KEY: dummy-key-for-ci
