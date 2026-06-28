@@ -5,6 +5,19 @@ The system receives incident reports, classifies them in real time, routes them 
 
 ---
 
+## Tech Stack
+
+| Technology | Why |
+|---|---|
+| LangGraph | Supports branching logic and human-in-the-loop interrupt |
+| Claude (Anthropic) | Structured output via SDK — no JSON parsing |
+| Zod | Runtime schema validation + TypeScript types for free |
+| Google Sheets API | External audit log without a database |
+| Vitest | Fast, native TypeScript support |
+| TypeScript | Type safety across the entire codebase |
+
+---
+
 ## How It Works
 
 Every incident goes through a multi-step graph:
@@ -110,6 +123,17 @@ Choose from the interactive menu:
 1. Run built-in sample incidents
 2. Enter a custom incident
 3. Both
+
+---
+
+## Running with Docker
+
+```bash
+docker build -t triage-workflow .
+docker run -it --env-file .env -v $(pwd)/credentials.json:/app/credentials.json triage-workflow
+```
+
+Requires a `.env` file and a `credentials.json` service account file in the project root.
 
 ---
 
